@@ -1,42 +1,38 @@
-# ✨ Full Stack Realtime Chat App ✨
+## 🆕 New Feature: Video Calling
 
-![Demo App](/frontend/public/screenshot-for-readme.png)
+We’ve added real-time video calling using WebRTC 🚀  
+This enables users to communicate face-to-face directly inside the app.
 
-[Video Tutorial on Youtube](https://youtu.be/ntKkVrQqBYY)
+## 🚀 Features
 
-Highlights:
+### 💬 Real-time Chat
+- Instant messaging using Socket.io
+- Typing indicators and live updates
 
-- 🌟 Tech stack: MERN + Socket.io + TailwindCSS + Daisy UI
-- 🎃 Authentication && Authorization with JWT
-- 👾 Real-time messaging with Socket.io
-- 🚀 Online user status
-- 👌 Global state management with Zustand
-- 🐞 Error handling both on the server and on the client
-- ⭐ At the end Deployment like a pro for FREE!
-- ⏳ And much more!
+### 👥 User Authentication
+- Secure login & signup with JWT
+- Protected routes and sessions
 
-### Setup .env file
+### 🟢 Online Status
+- See active users in real-time
 
-```js
-MONGODB_URI=...
-PORT=5001
-JWT_SECRET=...
+### 📁 Media Sharing
+- Send images using Cloudinary integration
 
-CLOUDINARY_CLOUD_NAME=...
-CLOUDINARY_API_KEY=...
-CLOUDINARY_API_SECRET=...
+### 📞 Video Calling (New 🔥)
+- Peer-to-peer video calls using WebRTC
+- Call initiation & receiving system
+- Real-time signaling with Socket.io
 
-NODE_ENV=development
-```
+### ⚡ State Management
+- Global state using Zustand
 
-### Build the app
+### 🎨 Modern UI
+- Built with TailwindCSS + Daisy UI
+- Responsive and clean design
 
-```shell
-npm run build
-```
+### 🛠 Error Handling
+- Robust backend & frontend error handling
 
-### Start the app
-
-```shell
-npm start
-```
+### 🚀 Deployment Ready
+- Easy deployment setup included
