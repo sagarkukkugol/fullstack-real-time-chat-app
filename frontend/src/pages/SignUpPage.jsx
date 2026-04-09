@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { useAuthStore } from "../store/useAuthStore";
-import { Eye, EyeOff, Loader2, Lock, Mail, MessageSquare, User } from "lucide-react";
+import { Eye, EyeOff, Loader2, Lock, Mail, MessageSquare, Phone, User } from "lucide-react";
 import { Link } from "react-router-dom";
-
 import AuthImagePattern from "../components/AuthImagePattern";
 import toast from "react-hot-toast";
 
@@ -12,6 +11,7 @@ const SignUpPage = () => {
     fullName: "",
     email: "",
     password: "",
+    phoneNumber: "", // ✅ NEW
   });
 
   const { signup, isSigningUp } = useAuthStore();
@@ -20,32 +20,34 @@ const SignUpPage = () => {
     if (!formData.fullName.trim()) return toast.error("Full name is required");
     if (!formData.email.trim()) return toast.error("Email is required");
     if (!/\S+@\S+\.\S+/.test(formData.email)) return toast.error("Invalid email format");
+    if (!formData.phoneNumber.trim()) return toast.error("Phone number is required");
+    // 10-15 digits, optional leading +
+    if (!/^\+?[0-9]{10,15}$/.test(formData.phoneNumber.trim())) {
+      return toast.error("Enter a valid phone number (10–15 digits)");
+    }
     if (!formData.password) return toast.error("Password is required");
     if (formData.password.length < 6) return toast.error("Password must be at least 6 characters");
-
     return true;
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-
-    const success = validateForm();
-
-    if (success === true) signup(formData);
+    if (validateForm() === true) signup(formData);
   };
+
+  // Shared field updater
+  const update = (field) => (e) => setFormData({ ...formData, [field]: e.target.value });
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2">
-      {/* left side */}
+      {/* Left side — form */}
       <div className="flex flex-col justify-center items-center p-6 sm:p-12">
         <div className="w-full max-w-md space-y-8">
-          {/* LOGO */}
+
+          {/* Logo */}
           <div className="text-center mb-8">
             <div className="flex flex-col items-center gap-2 group">
-              <div
-                className="size-12 rounded-xl bg-primary/10 flex items-center justify-center 
-              group-hover:bg-primary/20 transition-colors"
-              >
+              <div className="size-12 rounded-xl bg-primary/10 flex items-center justify-center group-hover:bg-primary/20 transition-colors">
                 <MessageSquare className="size-6 text-primary" />
               </div>
               <h1 className="text-2xl font-bold mt-2">Create Account</h1>
@@ -53,7 +55,9 @@ const SignUpPage = () => {
             </div>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
+
+            {/* Full Name */}
             <div className="form-control">
               <label className="label">
                 <span className="label-text font-medium">Full Name</span>
@@ -64,14 +68,16 @@ const SignUpPage = () => {
                 </div>
                 <input
                   type="text"
-                  className={`input input-bordered w-full pl-10`}
+                  className="input input-bordered w-full pl-10"
                   placeholder="John Doe"
                   value={formData.fullName}
-                  onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                  onChange={update("fullName")}
+                  autoComplete="name"
                 />
               </div>
             </div>
 
+            {/* Email */}
             <div className="form-control">
               <label className="label">
                 <span className="label-text font-medium">Email</span>
@@ -82,14 +88,42 @@ const SignUpPage = () => {
                 </div>
                 <input
                   type="email"
-                  className={`input input-bordered w-full pl-10`}
+                  className="input input-bordered w-full pl-10"
                   placeholder="you@example.com"
                   value={formData.email}
-                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                  onChange={update("email")}
+                  autoComplete="email"
                 />
               </div>
             </div>
 
+            {/* ── Phone Number (NEW) ── */}
+            <div className="form-control">
+              <label className="label">
+                <span className="label-text font-medium">Phone Number</span>
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Phone className="size-5 text-base-content/40" />
+                </div>
+                <input
+                  type="tel"
+                  className="input input-bordered w-full pl-10"
+                  placeholder="9876543210"
+                  value={formData.phoneNumber}
+                  onChange={update("phoneNumber")}
+                  autoComplete="tel"
+                  maxLength={16}
+                />
+              </div>
+              <label className="label">
+                <span className="label-text-alt text-base-content/40">
+                  10–15 digits. Optionally start with +91
+                </span>
+              </label>
+            </div>
+
+            {/* Password */}
             <div className="form-control">
               <label className="label">
                 <span className="label-text font-medium">Password</span>
@@ -100,21 +134,20 @@ const SignUpPage = () => {
                 </div>
                 <input
                   type={showPassword ? "text" : "password"}
-                  className={`input input-bordered w-full pl-10`}
-                  placeholder="••••••••"
+                  className="input input-bordered w-full pl-10"
+                  placeholder="Min. 6 characters"
                   value={formData.password}
-                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                  onChange={update("password")}
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
                   className="absolute inset-y-0 right-0 pr-3 flex items-center"
                   onClick={() => setShowPassword(!showPassword)}
                 >
-                  {showPassword ? (
-                    <EyeOff className="size-5 text-base-content/40" />
-                  ) : (
-                    <Eye className="size-5 text-base-content/40" />
-                  )}
+                  {showPassword
+                    ? <EyeOff className="size-5 text-base-content/40" />
+                    : <Eye className="size-5 text-base-content/40" />}
                 </button>
               </div>
             </div>
@@ -123,27 +156,22 @@ const SignUpPage = () => {
               {isSigningUp ? (
                 <>
                   <Loader2 className="size-5 animate-spin" />
-                  Loading...
+                  Creating account…
                 </>
-              ) : (
-                "Create Account"
-              )}
+              ) : "Create Account"}
             </button>
           </form>
 
           <div className="text-center">
             <p className="text-base-content/60">
               Already have an account?{" "}
-              <Link to="/login" className="link link-primary">
-                Sign in
-              </Link>
+              <Link to="/login" className="link link-primary">Sign in</Link>
             </p>
           </div>
         </div>
       </div>
 
-      {/* right side */}
-
+      {/* Right side */}
       <AuthImagePattern
         title="Join our community"
         subtitle="Connect with friends, share moments, and stay in touch with your loved ones."
@@ -151,4 +179,5 @@ const SignUpPage = () => {
     </div>
   );
 };
+
 export default SignUpPage;

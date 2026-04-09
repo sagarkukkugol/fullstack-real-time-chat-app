@@ -1,16 +1,15 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useChatStore } from "../store/useChatStore";
+import { useAuthStore } from "../store/useAuthStore";
 import ChatHeader from "./ChatHeader";
 import MessageInput from "./MessageInput";
 import MessageSkeleton from "./skeletons/MessageSkeleton";
-import { useAuthStore } from "../store/useAuthStore";
-import { useChatStore } from "../store/useChatStore";
+import AITypingIndicator from "./ai/AITypingIndicator";
 import { formatMessageTime } from "../lib/utils";
-import { getSocket } from "../lib/socket";
+import LedgerPanel from "./ledger/LedgerPanel";
+import { Trash2 } from "lucide-react";
 
 const ChatContainer = () => {
-  const navigate = useNavigate();
-
   const {
     messages,
     getMessages,
@@ -18,99 +17,36 @@ const ChatContainer = () => {
     selectedUser,
     subscribeToMessages,
     unsubscribeFromMessages,
+    isAITyping,
+    clearChatHistory,
+    isClearingChat,
   } = useChatStore();
 
   const { authUser } = useAuthStore();
   const messageEndRef = useRef(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
 
-  const [incomingCall, setIncomingCall] = useState(null);
-  const [isCalling, setIsCalling] = useState(false);
-
-  // ✅ Socket call event listeners
+  // Load messages and subscribe to socket events on chat open
   useEffect(() => {
-    const socket = getSocket();
-    if (!socket) return;
-
-    socket.on("incoming-call", ({ from, roomId, callerName }) => {
-      setIncomingCall({ from, roomId, callerName: callerName || "Someone" });
-    });
-
-    socket.on("call-accepted", ({ roomId }) => {
-      setIsCalling(false);
-      navigate(`/call/${roomId}`);
-    });
-
-    socket.on("call-declined", () => {
-      setIsCalling(false);
-      alert("Call was declined.");
-    });
-
-    socket.on("call-cancelled", () => {
-      setIncomingCall(null);
-    });
-
-    return () => {
-      socket.off("incoming-call");
-      socket.off("call-accepted");
-      socket.off("call-declined");
-      socket.off("call-cancelled");
-    };
-  }, []);
-
-  const handleAcceptCall = () => {
-    const socket = getSocket();
-    if (!socket || !incomingCall) return;
-    socket.emit("accept-call", { to: incomingCall.from, roomId: incomingCall.roomId });
-    setIncomingCall(null);
-    navigate(`/call/${incomingCall.roomId}`);
-  };
-
-  const handleDeclineCall = () => {
-    const socket = getSocket();
-    if (!socket || !incomingCall) return;
-    socket.emit("decline-call", { to: incomingCall.from });
-    setIncomingCall(null);
-  };
-
-  const handleCall = () => {
-    const socket = getSocket();
-    if (!socket || !selectedUser || isCalling) return;
-    // Sort IDs so roomId is ALWAYS the same for both users
-    // e.g. User A calls B → "AAA-BBB", User B calls A → also "AAA-BBB"
-    const roomId = [authUser._id, selectedUser._id].sort().join("-");
-    socket.emit("call-user", {
-      to: selectedUser._id,
-      from: authUser._id,
-      callerName: authUser.fullName,
-      roomId,
-    });
-    setIsCalling(true);
-  };
-
-  const handleCancelCall = () => {
-    const socket = getSocket();
-    if (!socket) return;
-    socket.emit("cancel-call", { to: selectedUser._id });
-    setIsCalling(false);
-  };
-
-  useEffect(() => {
-    if (!selectedUser?._id) return;
     getMessages(selectedUser._id);
-  }, [selectedUser]);
-
-  useEffect(() => {
     subscribeToMessages(selectedUser);
     return () => unsubscribeFromMessages();
-  }, [selectedUser]);
+  }, [selectedUser._id]);
 
+  // Auto-scroll on new messages or when AI types
   useEffect(() => {
     messageEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, isAITyping]);
+
+  // ── Clear chat confirmation handler ───────────
+  const handleClearChat = async () => {
+    await clearChatHistory();
+    setShowClearConfirm(false);
+  };
 
   if (isMessagesLoading) {
     return (
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-auto">
         <ChatHeader />
         <MessageSkeleton />
         <MessageInput />
@@ -119,88 +55,170 @@ const ChatContainer = () => {
   }
 
   return (
-    <div className="flex-1 flex flex-col relative">
+    <div className="flex flex-1 overflow-hidden relative">
+      {/* ── Main chat column ── */}
+      <div className="flex-1 flex flex-col overflow-auto">
+        <ChatHeader />
 
-      {/* ✅ INCOMING CALL MODAL */}
-      {incomingCall && (
-        <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 rounded-lg">
-          <div className="bg-base-100 rounded-2xl p-8 flex flex-col items-center gap-4 shadow-2xl w-72">
-            <div className="text-6xl animate-bounce">📞</div>
-            <h2 className="text-xl font-bold">{incomingCall.callerName}</h2>
-            <p className="text-base-content/60 text-sm">Incoming video call...</p>
-            <div className="flex gap-6 mt-2">
+        {/* ── Clear chat button + confirm ── */}
+        <div className="flex justify-end px-4 pt-2">
+          {showClearConfirm ? (
+            <div className="flex items-center gap-2 text-sm">
+              <span className="text-base-content/60">Clear all messages?</span>
               <button
-                onClick={handleDeclineCall}
-                className="btn btn-error btn-circle btn-lg text-xl"
-                title="Decline"
+                onClick={handleClearChat}
+                disabled={isClearingChat}
+                className="btn btn-xs btn-error"
               >
-                📵
+                {isClearingChat ? "Clearing..." : "Yes, clear"}
               </button>
               <button
-                onClick={handleAcceptCall}
-                className="btn btn-success btn-circle btn-lg text-xl"
-                title="Accept"
+                onClick={() => setShowClearConfirm(false)}
+                className="btn btn-xs btn-ghost"
               >
-                ✅
+                Cancel
               </button>
             </div>
-            <p className="text-xs text-base-content/40">📵 Decline &nbsp;&nbsp; ✅ Accept</p>
-          </div>
+          ) : (
+            <button
+              onClick={() => setShowClearConfirm(true)}
+              className="btn btn-ghost btn-xs gap-1 text-base-content/40 hover:text-error"
+              title="Clear chat history"
+            >
+              <Trash2 size={13} />
+              <span className="hidden sm:inline">Clear chat</span>
+            </button>
+          )}
         </div>
-      )}
 
-      {/* ✅ OUTGOING CALL BANNER */}
-      {isCalling && (
-        <div className="absolute top-0 left-0 right-0 z-40 bg-green-600 text-white flex items-center justify-between px-4 py-2 rounded-t-lg">
-          <span className="animate-pulse">📞 Calling {selectedUser?.fullName}... waiting for answer</span>
-          <button onClick={handleCancelCall} className="btn btn-sm btn-ghost text-white">
-            Cancel ✕
-          </button>
-        </div>
-      )}
+        {/* ── Messages list ── */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {messages.length === 0 && (
+            <div className="flex flex-col items-center justify-center h-full text-base-content/30 gap-2">
+              {selectedUser.isAI ? (
+                <>
+                  <span className="text-5xl">🤖</span>
+                  <p className="text-sm font-medium">Ask Chatty AI anything!</p>
+                  <p className="text-xs">Your messages are private and not stored by OpenAI.</p>
+                </>
+              ) : (
+                <>
+                  <span className="text-4xl">💬</span>
+                  <p className="text-sm">No messages yet. Say hello!</p>
+                </>
+              )}
+            </div>
+          )}
 
-      {/* Header + Call Button */}
-      <div className="flex items-center justify-between p-2 border-b border-base-300">
-        <ChatHeader />
-        {selectedUser && (
-          <button
-            onClick={handleCall}
-            disabled={isCalling}
-            className="btn btn-success btn-sm text-white gap-1 mr-2"
-          >
-            📹 Call
-          </button>
-        )}
-      </div>
+          {messages.map((message) => {
+            const isFromMe = message.senderId === authUser._id;
+            const isAIMessage = message.isAI;
 
-      {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((msg) => {
-          const isMe = msg.senderId === authUser._id;
-          return (
-            <div key={msg._id} className={`chat ${isMe ? "chat-end" : "chat-start"}`}>
-              <div className="chat-image avatar">
-                <div className="size-10 rounded-full border">
-                  <img
-                    src={isMe ? authUser.profilePic || "/avatar.png" : selectedUser.profilePic || "/avatar.png"}
-                    alt="profile"
-                  />
+            return (
+              <div
+                key={message._id}
+                className={`chat ${isFromMe ? "chat-end" : "chat-start"}`}
+              >
+                {/* Avatar */}
+                <div className="chat-image avatar">
+                  <div className="size-10 rounded-full border">
+                    {isAIMessage ? (
+                      // AI avatar
+                      <div className="w-full h-full rounded-full bg-primary/10 flex items-center justify-center">
+                        {selectedUser.profilePic ? (
+                          <img src={selectedUser.profilePic} alt="AI" className="rounded-full" />
+                        ) : (
+                          <span className="text-lg">🤖</span>
+                        )}
+                      </div>
+                    ) : (
+                      <img
+                        src={
+                          isFromMe
+                            ? authUser.profilePic || "/avatar.png"
+                            : selectedUser.profilePic || "/avatar.png"
+                        }
+                        alt="avatar"
+                        className="rounded-full"
+                      />
+                    )}
+                  </div>
+                </div>
+
+                {/* Timestamp */}
+                <div className="chat-header mb-1">
+                  {isAIMessage && (
+                    <span className="text-xs font-medium text-primary mr-1">Chatty AI</span>
+                  )}
+                  <time className="text-xs opacity-50">
+                    {formatMessageTime(message.createdAt)}
+                  </time>
+                </div>
+
+                {/* Bubble */}
+                <div
+                  className={`chat-bubble flex flex-col gap-2 ${
+                    isAIMessage
+                      ? "bg-primary/10 text-base-content border border-primary/20"
+                      : ""
+                  }`}
+                >
+                  {/* Image */}
+                  {message.image && (
+                    <img
+                      src={message.image}
+                      alt="attachment"
+                      className="sm:max-w-[200px] rounded-md"
+                    />
+                  )}
+
+                  {/* File with View + Download */}
+                  {message.file && (
+                    <div className="flex items-center gap-2 bg-base-200 rounded-lg px-3 py-2 text-sm">
+                      <span className="text-lg">📎</span>
+                      <span className="flex-1 truncate font-medium">
+                        {message.fileName || "Attached file"}
+                      </span>
+                      <div className="flex gap-1 shrink-0">
+                        <a
+                          href={message.file}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="btn btn-xs btn-ghost text-primary"
+                        >
+                          View
+                        </a>
+                        <a
+                          href={message.file}
+                          download={message.fileName || "file"}
+                          className="btn btn-xs btn-ghost text-success"
+                        >
+                          ↓
+                        </a>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Text */}
+                  {message.text && <p className="whitespace-pre-wrap">{message.text}</p>}
                 </div>
               </div>
-              <div className="chat-header mb-1">
-                <time className="text-xs opacity-50 ml-1">{formatMessageTime(msg.createdAt)}</time>
-              </div>
-              <div className="chat-bubble flex flex-col">
-                {msg.image && <img src={msg.image} alt="attachment" className="sm:max-w-[200px] rounded-md mb-2" />}
-                {msg.text && <p>{msg.text}</p>}
-              </div>
-            </div>
-          );
-        })}
-        <div ref={messageEndRef} />
+            );
+          })}
+
+          {/* ── AI Typing Indicator ── */}
+          {isAITyping && selectedUser?.isAI && (
+            <AITypingIndicator aiUser={selectedUser} />
+          )}
+
+          <div ref={messageEndRef} />
+        </div>
+
+        <MessageInput />
       </div>
 
-      <MessageInput />
+      {/* ── Ledger Panel (hidden for AI chats) ── */}
+      {!selectedUser.isAI && <LedgerPanel selectedUser={selectedUser} />}
     </div>
   );
 };

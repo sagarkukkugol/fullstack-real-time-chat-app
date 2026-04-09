@@ -12,11 +12,15 @@ export const io = new Server(server, {
   },
 });
 
-// userId -> socketId
+// userId -> socketId mapping
 const userSocketMap = {};
 
+/**
+ * Get the socket ID for a given userId.
+ * Used by controllers (message, ledger) to emit targeted events.
+ */
 export function getReceiverSocketId(userId) {
-  return userSocketMap[userId];
+  return userSocketMap[userId.toString()];
 }
 
 io.on("connection", (socket) => {
@@ -27,11 +31,15 @@ io.on("connection", (socket) => {
     userSocketMap[userId] = socket.id;
   }
 
+  // Broadcast updated online users list to everyone
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
-  // =========================
-  // REALTIME MESSAGE
-  // =========================
+  // ─────────────────────────────────────────────
+  // 💬 REAL-TIME MESSAGING
+  // FIX: The backend now emits "newMessage" directly from the
+  // message.controller via io.to(socketId).emit(...).
+  // This socket relay is kept as a fallback only.
+  // ─────────────────────────────────────────────
   socket.on("send-message", ({ to, message }) => {
     const receiverSocketId = userSocketMap[to];
     if (receiverSocketId) {
@@ -39,11 +47,9 @@ io.on("connection", (socket) => {
     }
   });
 
-  // =========================
-  // 📞 CALL FLOW
-  // =========================
-
-  // Caller → Receiver: incoming call notification
+  // ─────────────────────────────────────────────
+  // 📞 CALL SIGNALING
+  // ─────────────────────────────────────────────
   socket.on("call-user", ({ to, from, callerName, roomId }) => {
     const receiverSocketId = userSocketMap[to];
     if (receiverSocketId) {
@@ -51,7 +57,6 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Receiver accepts → notify caller
   socket.on("accept-call", ({ to, roomId }) => {
     const callerSocketId = userSocketMap[to];
     if (callerSocketId) {
@@ -59,7 +64,6 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Receiver declines → notify caller
   socket.on("decline-call", ({ to }) => {
     const callerSocketId = userSocketMap[to];
     if (callerSocketId) {
@@ -67,7 +71,6 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Caller cancels before receiver picks up → notify receiver
   socket.on("cancel-call", ({ to }) => {
     const receiverSocketId = userSocketMap[to];
     if (receiverSocketId) {
@@ -75,40 +78,22 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Relay camera state to other peer in room
-  socket.on("peer-video-toggle", ({ roomId, isOff }) => {
-    socket.to(roomId).emit("peer-video-toggle", { isOff });
-  });
-
-  // Relay mic state to other peer in room
-  socket.on("peer-audio-toggle", ({ roomId, isMuted }) => {
-    socket.to(roomId).emit("peer-audio-toggle", { isMuted });
-  });
-
-  // =========================
+  // ─────────────────────────────────────────────
   // 📹 WEBRTC ROOM
-  // =========================
+  // ─────────────────────────────────────────────
   socket.on("join-room", (roomId) => {
+    if (socket.rooms.has(roomId)) return; // already joined
+
     const room = io.sockets.adapter.rooms.get(roomId);
-
-    // If socket is already in this room (e.g. navigated back), ignore
-    if (socket.rooms.has(roomId)) {
-      return;
-    }
-
-    // Count members excluding this socket
     const currentSize = room ? room.size : 0;
 
     if (currentSize === 0) {
-      // First person — they wait as initiator
       socket.join(roomId);
       socket.emit("init");
     } else if (currentSize === 1) {
-      // Second person joins — start the call
       socket.join(roomId);
       io.to(roomId).emit("ready");
     } else {
-      // Room already has 2 people
       socket.emit("room-full");
     }
   });
@@ -125,9 +110,17 @@ io.on("connection", (socket) => {
     socket.to(roomId).emit("ice-candidate", { candidate });
   });
 
-  // =========================
+  socket.on("peer-video-toggle", ({ roomId, isOff }) => {
+    socket.to(roomId).emit("peer-video-toggle", { isOff });
+  });
+
+  socket.on("peer-audio-toggle", ({ roomId, isMuted }) => {
+    socket.to(roomId).emit("peer-audio-toggle", { isMuted });
+  });
+
+  // ─────────────────────────────────────────────
   // DISCONNECT
-  // =========================
+  // ─────────────────────────────────────────────
   socket.on("disconnect", () => {
     console.log("❌ Disconnected:", socket.id);
     for (const user in userSocketMap) {

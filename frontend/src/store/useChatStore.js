@@ -7,21 +7,22 @@ export const useChatStore = create((set, get) => ({
   messages: [],
   users: [],
   selectedUser: null,
-
   isUsersLoading: false,
   isMessagesLoading: false,
+  isClearingChat: false,
 
+  // ── AI typing indicator state ─────────────────
+  // true while we're waiting for the AI to reply
+  isAITyping: false,
+
+  // ── Sidebar users ─────────────────────────────
   getUsers: async () => {
     set({ isUsersLoading: true });
     try {
       const res = await axiosInstance.get("/messages/users");
       set({ users: res.data });
-
-      if (res.data.length > 0) {
-        set({ selectedUser: res.data[0] });
-      }
     } catch (error) {
-      toast.error(error.response?.data?.message);
+      toast.error(error.response?.data?.message || "Failed to load users");
     } finally {
       set({ isUsersLoading: false });
     }
@@ -29,6 +30,7 @@ export const useChatStore = create((set, get) => ({
 
   setSelectedUser: (selectedUser) => set({ selectedUser }),
 
+  // ── Fetch messages ─────────────────────────────
   getMessages: async (userId) => {
     set({ isMessagesLoading: true });
     try {
@@ -41,51 +43,98 @@ export const useChatStore = create((set, get) => ({
     }
   },
 
-  // BUG FIX #1: Add the sent message to state immediately so sender sees it
+  // ── Send message ───────────────────────────────
+  // Adds the sent message to state immediately (sender sees it right away).
+  // The receiver (or AI reply) comes back via socket "newMessage" event.
   sendMessage: async (messageData) => {
     try {
       const { selectedUser } = get();
-
       const res = await axiosInstance.post(
         `/messages/send/${selectedUser._id}`,
         messageData
       );
-
-      // ✅ FIXED: Add message to state so sender sees it right away
-      // The receiver will get it via the "newMessage" socket event
-      set((state) => ({
-        messages: [...state.messages, res.data],
-      }));
+      // Add sender's own message instantly — dedup guard in addMessage prevents doubles
+      get().addMessage(res.data);
     } catch (error) {
-      console.log("SEND ERROR:", error);
+      console.error("sendMessage error:", error);
       toast.error("Failed to send message");
     }
   },
 
-  // BUG FIX #3: Accept selectedUser as a parameter so the listener
-  // always has the correct current user (not a stale closure value)
+  // ── Dedup-safe message adder ───────────────────
+  // Called both from sendMessage (API response) and the socket "newMessage" handler.
+  // If a message with the same _id is already in state, it is skipped.
+  // This prevents the classic "message appears twice" bug.
+  addMessage: (message) => {
+    set((state) => {
+      const alreadyExists = state.messages.some((m) => m._id === message._id);
+      if (alreadyExists) return state; // no change — prevents duplicate
+      return { messages: [...state.messages, message] };
+    });
+  },
+
+  // ── Subscribe to incoming messages + AI events ─
+  // Pass the current selectedUser so the filter is never stale.
   subscribeToMessages: (selectedUser) => {
     const socket = getSocket();
     if (!socket) return;
 
-    socket.off("newMessage"); // prevent duplicate listeners
+    socket.off("newMessage");
+    socket.off("ai:typing");
+    socket.off("ai:stopTyping");
 
+    // New chat message (human or AI reply)
     socket.on("newMessage", (message) => {
-      // Only add if the message belongs to the currently open chat
       if (
         selectedUser &&
         (message.senderId === selectedUser._id ||
           message.receiverId === selectedUser._id)
       ) {
-        set((state) => ({
-          messages: [...state.messages, message],
-        }));
+        get().addMessage(message);
+        // If this is the AI replying, make sure typing indicator is cleared
+        if (message.isAI) {
+          set({ isAITyping: false });
+        }
       }
+    });
+
+    // AI started "thinking"
+    socket.on("ai:typing", () => {
+      set({ isAITyping: true });
+    });
+
+    // AI finished — hide indicator (also cleared when the message arrives)
+    socket.on("ai:stopTyping", () => {
+      set({ isAITyping: false });
     });
   },
 
   unsubscribeFromMessages: () => {
     const socket = getSocket();
-    if (socket) socket.off("newMessage");
+    if (socket) {
+      socket.off("newMessage");
+      socket.off("ai:typing");
+      socket.off("ai:stopTyping");
+    }
+    set({ isAITyping: false });
+  },
+
+  // ── Clear chat history ─────────────────────────
+  // Calls the soft-delete API and wipes local state for this conversation.
+  // The other user / AI chat is completely unaffected.
+  clearChatHistory: async () => {
+    const { selectedUser } = get();
+    if (!selectedUser) return;
+
+    set({ isClearingChat: true });
+    try {
+      await axiosInstance.delete(`/messages/clear/${selectedUser._id}`);
+      set({ messages: [] }); // clear from UI immediately
+      toast.success("Chat history cleared.");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to clear chat.");
+    } finally {
+      set({ isClearingChat: false });
+    }
   },
 }));
