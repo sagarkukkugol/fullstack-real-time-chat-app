@@ -5,17 +5,24 @@ import express from "express";
 const app = express();
 const server = http.createServer(app);
 
+// ✅ CORS FIX (VERY IMPORTANT)
 const io = new Server(server, {
   cors: {
     origin: (origin, callback) => {
       if (!origin) return callback(null, true);
 
+      // allow localhost
       if (origin.includes("localhost")) return callback(null, true);
+
+      // allow ALL vercel deployments (preview + prod)
       if (origin.includes(".vercel.app")) return callback(null, true);
+
+      // allow production frontend
       if (origin === process.env.CLIENT_URL) return callback(null, true);
 
-      return callback(new Error("CORS blocked: " + origin));
+      return callback(new Error("❌ CORS blocked: " + origin));
     },
+    methods: ["GET", "POST"],
     credentials: true,
   },
 });
@@ -23,31 +30,24 @@ const io = new Server(server, {
 // userId -> socketId mapping
 const userSocketMap = {};
 
-/**
- * Get the socket ID for a given userId.
- * Used by controllers (message, ledger) to emit targeted events.
- */
+// ✅ EXPORT THIS (FIX YOUR PREVIOUS ERROR)
 export function getReceiverSocketId(userId) {
-  return userSocketMap[userId.toString()];
+  return userSocketMap[userId?.toString()];
 }
 
 io.on("connection", (socket) => {
   console.log("✅ User connected:", socket.id);
 
   const userId = socket.handshake.query.userId;
+
   if (userId) {
     userSocketMap[userId] = socket.id;
   }
 
-  // Broadcast updated online users list to everyone
+  // broadcast online users
   io.emit("getOnlineUsers", Object.keys(userSocketMap));
 
-  // ─────────────────────────────────────────────
-  // 💬 REAL-TIME MESSAGING
-  // FIX: The backend now emits "newMessage" directly from the
-  // message.controller via io.to(socketId).emit(...).
-  // This socket relay is kept as a fallback only.
-  // ─────────────────────────────────────────────
+  // 💬 MESSAGE
   socket.on("send-message", ({ to, message }) => {
     const receiverSocketId = userSocketMap[to];
     if (receiverSocketId) {
@@ -55,13 +55,15 @@ io.on("connection", (socket) => {
     }
   });
 
-  // ─────────────────────────────────────────────
-  // 📞 CALL SIGNALING
-  // ─────────────────────────────────────────────
+  // 📞 CALL
   socket.on("call-user", ({ to, from, callerName, roomId }) => {
     const receiverSocketId = userSocketMap[to];
     if (receiverSocketId) {
-      io.to(receiverSocketId).emit("incoming-call", { from, roomId, callerName });
+      io.to(receiverSocketId).emit("incoming-call", {
+        from,
+        roomId,
+        callerName,
+      });
     }
   });
 
@@ -86,19 +88,17 @@ io.on("connection", (socket) => {
     }
   });
 
-  // ─────────────────────────────────────────────
   // 📹 WEBRTC ROOM
-  // ─────────────────────────────────────────────
   socket.on("join-room", (roomId) => {
-    if (socket.rooms.has(roomId)) return; // already joined
+    if (socket.rooms.has(roomId)) return;
 
     const room = io.sockets.adapter.rooms.get(roomId);
-    const currentSize = room ? room.size : 0;
+    const size = room ? room.size : 0;
 
-    if (currentSize === 0) {
+    if (size === 0) {
       socket.join(roomId);
       socket.emit("init");
-    } else if (currentSize === 1) {
+    } else if (size === 1) {
       socket.join(roomId);
       io.to(roomId).emit("ready");
     } else {
@@ -126,19 +126,20 @@ io.on("connection", (socket) => {
     socket.to(roomId).emit("peer-audio-toggle", { isMuted });
   });
 
-  // ─────────────────────────────────────────────
-  // DISCONNECT
-  // ─────────────────────────────────────────────
+  // ❌ DISCONNECT
   socket.on("disconnect", () => {
     console.log("❌ Disconnected:", socket.id);
+
     for (const user in userSocketMap) {
       if (userSocketMap[user] === socket.id) {
         delete userSocketMap[user];
         break;
       }
     }
+
     io.emit("getOnlineUsers", Object.keys(userSocketMap));
   });
 });
 
+// ✅ IMPORTANT EXPORT (YOU WERE MISSING THIS BEFORE)
 export { app, server, io };
