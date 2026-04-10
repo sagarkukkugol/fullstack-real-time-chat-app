@@ -9,7 +9,7 @@ import { app, server } from "./lib/socket.js";
 import authRoutes from "./routes/auth.route.js";
 import messageRoutes from "./routes/message.route.js";
 import ledgerRoutes from "./routes/ledger.route.js";
-import contactRoutes from "./routes/contact.route.js"; // ✅ NEW
+import contactRoutes from "./routes/contact.route.js";
 
 dotenv.config();
 
@@ -17,19 +17,28 @@ const PORT = process.env.PORT || 5000;
 
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
+
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: process.env.CLIENT_URL,
     credentials: true,
   })
 );
 
+// ✅ Health check
+app.get("/", (req, res) => {
+  res.send("Backend is running 🚀");
+});
+
+// Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/ledger", ledgerRoutes);
-app.use("/api/contacts", contactRoutes); // ✅ NEW: alias + user-info endpoints
+app.use("/api/contacts", contactRoutes);
 
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on PORT: ${PORT}`);
-  connectDB();
+// Start server AFTER DB connection
+connectDB().then(() => {
+  server.listen(PORT, () => {
+    console.log(`🚀 Server running on PORT: ${PORT}`);
+  });
 });
