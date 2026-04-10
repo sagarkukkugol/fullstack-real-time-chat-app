@@ -20,7 +20,7 @@ const UserInfoModal = ({ userId, onClose }) => {
   useEffect(() => {
     const fetchInfo = async () => {
       try {
-        const res = await axiosInstance.get(`/contacts/user-info/${userId}`);
+        const res = await axiosInstance.get(`/api/contacts/user-info/${userId}`);
         setUserInfo(res.data);
       } catch (err) {
         setError("Could not load user info.");

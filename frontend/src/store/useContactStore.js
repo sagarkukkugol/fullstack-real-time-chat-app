@@ -32,7 +32,7 @@ export const useContactStore = create((set, get) => ({
   fetchAliases: async () => {
     set({ isLoadingAliases: true });
     try {
-      const res = await axiosInstance.get("/contacts/aliases");
+      const res = await axiosInstance.get("/api/contacts/aliases");
       set({ aliasMap: res.data }); // res.data = { userId: customName, ... }
     } catch (error) {
       console.error("fetchAliases error:", error);
@@ -50,7 +50,7 @@ export const useContactStore = create((set, get) => ({
     }
     set({ isSavingAlias: true });
     try {
-      await axiosInstance.post("/contacts/alias", { contactUserId, customName: customName.trim() });
+      await axiosInstance.post("/api/contacts/alias", { contactUserId, customName: customName.trim() });
 
       // Update local map immediately — no re-fetch needed
       set((s) => ({
@@ -70,7 +70,7 @@ export const useContactStore = create((set, get) => ({
   // ── Delete alias (reset to real name) ─────────
   deleteAlias: async (contactUserId) => {
     try {
-      await axiosInstance.delete(`/contacts/alias/${contactUserId}`);
+      await axiosInstance.delete(`/api/contacts/alias/${contactUserId}`);
 
       // Remove from local map
       set((s) => {

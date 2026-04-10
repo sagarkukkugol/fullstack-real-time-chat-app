@@ -19,7 +19,7 @@ export const useChatStore = create((set, get) => ({
   getUsers: async () => {
     set({ isUsersLoading: true });
     try {
-      const res = await axiosInstance.get("/messages/users");
+      const res = await axiosInstance.get("/api/messages/users");
       set({ users: res.data });
     } catch (error) {
       toast.error(error.response?.data?.message || "Failed to load users");
@@ -128,7 +128,7 @@ export const useChatStore = create((set, get) => ({
 
     set({ isClearingChat: true });
     try {
-      await axiosInstance.delete(`/messages/clear/${selectedUser._id}`);
+      await axiosInstance.delete(`/api/messages/clear/${selectedUser._id}`);
       set({ messages: [] }); // clear from UI immediately
       toast.success("Chat history cleared.");
     } catch (error) {
