@@ -18,27 +18,36 @@ const PORT = process.env.PORT || 5000;
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 
+/* ✅ FIXED CORS (IMPORTANT) */
 app.use(
   cors({
-    origin: process.env.CLIENT_URL,
+    origin: [
+      "http://localhost:5173",
+      "fullstack-real-time-chat-app-7cag.vercel.app",
+      process.env.CLIENT_URL, // your Vercel URL
+    ],
     credentials: true,
   })
 );
 
-// ✅ Health check
+/* ✅ HEALTH CHECK */
 app.get("/", (req, res) => {
   res.send("Backend is running 🚀");
 });
 
-// Routes
+/* ✅ ROUTES */
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/ledger", ledgerRoutes);
 app.use("/api/contacts", contactRoutes);
 
-// Start server AFTER DB connection
-connectDB().then(() => {
-  server.listen(PORT, () => {
-    console.log(`🚀 Server running on PORT: ${PORT}`);
+/* ✅ START SERVER AFTER DB */
+connectDB()
+  .then(() => {
+    server.listen(PORT, () => {
+      console.log(`🚀 Server running on PORT: ${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("DB connection failed ❌", err);
   });
-});

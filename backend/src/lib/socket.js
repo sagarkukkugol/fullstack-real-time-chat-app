@@ -7,7 +7,8 @@ const server = http.createServer(app);
 
 export const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
+    origin: ["http://localhost:5173","fullstack-real-time-chat-app-7cag.vercel.app"],
+
     credentials: true,
   },
 });
