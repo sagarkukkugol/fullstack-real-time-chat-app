@@ -141,4 +141,4 @@ io.on("connection", (socket) => {
   });
 });
 
-export { app, server };
+export { app, server, io };
