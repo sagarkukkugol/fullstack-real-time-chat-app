@@ -5,10 +5,17 @@ import express from "express";
 const app = express();
 const server = http.createServer(app);
 
-export const io = new Server(server, {
+const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173","fullstack-real-time-chat-app-7cag.vercel.app"],
+    origin: (origin, callback) => {
+      if (!origin) return callback(null, true);
 
+      if (origin.includes("localhost")) return callback(null, true);
+      if (origin.includes(".vercel.app")) return callback(null, true);
+      if (origin === process.env.CLIENT_URL) return callback(null, true);
+
+      return callback(new Error("CORS blocked: " + origin));
+    },
     credentials: true,
   },
 });

@@ -3,7 +3,6 @@ import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
 import cors from "cors";
 
-// dotenv must load BEFORE process.env is used anywhere
 dotenv.config();
 
 import { connectDB } from "./lib/db.js";
@@ -19,26 +18,37 @@ const PORT = process.env.PORT || 5000;
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
 
-// FIXED CORS — https:// was missing, now using origin function for dynamic CLIENT_URL
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://fullstack-real-time-chat-app-7cag.vercel.app",
-  process.env.CLIENT_URL,
-].filter(Boolean);
-
+/* ✅ FINAL CORS FIX (handles ALL Vercel URLs) */
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) return callback(null, true);
-      callback(new Error("CORS blocked for origin: " + origin));
+      // allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+
+      // allow localhost
+      if (origin.includes("localhost")) {
+        return callback(null, true);
+      }
+
+      // allow ALL vercel deployments (preview + production)
+      if (origin.includes(".vercel.app")) {
+        return callback(null, true);
+      }
+
+      // allow your CLIENT_URL if set
+      if (origin === process.env.CLIENT_URL) {
+        return callback(null, true);
+      }
+
+      return callback(new Error("CORS blocked for origin: " + origin));
     },
     credentials: true,
   })
 );
 
-/* HEALTH CHECK */
+/* ✅ HEALTH CHECK */
 app.get("/", (req, res) => {
-  res.send("Backend is running");
+  res.send("Backend is running 🚀");
 });
 
 /* ROUTES */
@@ -51,9 +61,9 @@ app.use("/api/contacts", contactRoutes);
 connectDB()
   .then(() => {
     server.listen(PORT, () => {
-      console.log("Server running on PORT: " + PORT);
+      console.log("🚀 Server running on PORT: " + PORT);
     });
   })
   .catch((err) => {
-    console.error("DB connection failed", err);
+    console.error("DB connection failed ❌", err);
   });
