@@ -11,7 +11,8 @@ export const connectSocket = (userId) => {
     socket = null;
   }
 
-  socket = io("http://localhost:5000", {
+  socket = io(import.meta.env.VITE_API_URL
+, {
     query: { userId },
     transports: ["websocket"],
   });
