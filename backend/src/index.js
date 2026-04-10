@@ -17,6 +17,7 @@ const PORT = process.env.PORT || 5000;
 
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
+app.set("trust proxy", 1);
 
 /* ✅ FINAL CORS FIX (handles ALL Vercel URLs) */
 app.use(
