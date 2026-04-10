@@ -17,37 +17,31 @@ const PORT = process.env.PORT || 5000;
 
 app.use(express.json({ limit: "10mb" }));
 app.use(cookieParser());
-app.set("trust proxy", 1);
+app.set("trust proxy", 1); // ✅ required on Render (sits behind a proxy)
 
-/* ✅ FINAL CORS FIX (handles ALL Vercel URLs) */
+// ✅ CORS — allows Vercel frontend + localhost dev
 app.use(
   cors({
     origin: (origin, callback) => {
-      // allow requests with no origin (mobile apps, curl, etc.)
+      // allow requests with no origin (mobile apps, curl, server-to-server)
       if (!origin) return callback(null, true);
 
-      // allow localhost
-      if (origin.includes("localhost")) {
-        return callback(null, true);
-      }
+      // allow localhost during development
+      if (origin.includes("localhost")) return callback(null, true);
 
-      // allow ALL vercel deployments (preview + production)
-      if (origin.includes(".vercel.app")) {
-        return callback(null, true);
-      }
+      // allow all Vercel preview + production deployments
+      if (origin.includes(".vercel.app")) return callback(null, true);
 
-      // allow your CLIENT_URL if set
-      if (origin === process.env.CLIENT_URL) {
-        return callback(null, true);
-      }
+      // allow the explicit CLIENT_URL env var
+      if (origin === process.env.CLIENT_URL) return callback(null, true);
 
       return callback(new Error("CORS blocked for origin: " + origin));
     },
-    credentials: true,
+    credentials: true, // ✅ required to send cookies cross-origin
   })
 );
 
-/* ✅ HEALTH CHECK */
+/* HEALTH CHECK */
 app.get("/", (req, res) => {
   res.send("Backend is running 🚀");
 });
