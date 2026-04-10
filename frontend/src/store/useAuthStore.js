@@ -57,7 +57,7 @@ export const useAuthStore = create((set, get) => ({
   signup: async (data) => {
     set({ isSigningUp: true });
     try {
-      const res = await axiosInstance.post("/auth/signup", data);
+      const res = await axiosInstance.post("/api/auth/signup", data);
       set({ authUser: res.data });
       toast.success("Account created");
       const socket = connectSocket(res.data._id);
@@ -71,7 +71,7 @@ export const useAuthStore = create((set, get) => ({
 
   logout: async () => {
     try {
-      await axiosInstance.post("/auth/logout");
+      await axiosInstance.post("/api/auth/logout");
       disconnectSocket();
       set({ authUser: null, onlineUsers: [], incomingCall: null });
       // Clear alias cache on logout
@@ -86,7 +86,7 @@ export const useAuthStore = create((set, get) => ({
   updateProfile: async (data) => {
     set({ isUpdatingProfile: true });
     try {
-      const res = await axiosInstance.put("/auth/update-profile", data);
+      const res = await axiosInstance.put("/api/auth/update-profile", data);
       set({ authUser: res.data });
       toast.success("Profile updated");
     } catch (error) {
