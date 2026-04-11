@@ -23,7 +23,7 @@ app.set("trust proxy", 1);
 // ✅ SIMPLE CORS (WORKS WITH JWT)
 app.use(
   cors({
-    origin: true,
+    origin: "https://fullstack-real-time-chat-app-eta.vercel.app",
     credentials: true,
   })
 );
