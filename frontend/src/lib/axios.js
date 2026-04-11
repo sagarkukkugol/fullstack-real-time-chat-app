@@ -1,14 +1,10 @@
-// 
-
-
-
 import axios from "axios";
 
 export const axiosInstance = axios.create({
-  baseURL: import.meta.env.VITE_API_URL + "/api",
+  baseURL: "/api",   // 🔥 THIS FIXES YOUR 401
 });
 
-// ✅ Attach token automatically
+// ✅ attach token
 axiosInstance.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
 
