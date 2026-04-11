@@ -37,11 +37,17 @@ export const signup = async (req, res) => {
       phoneNumber,
     });
 
-    // ✅ GENERATE TOKEN
     const token = generateToken(newUser._id);
 
+    // 🔥 FIX: SET COOKIE
+    res.cookie("jwt", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "None",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
     res.status(201).json({
-      token,
       user: {
         _id: newUser._id,
         fullName: newUser.fullName,
@@ -76,11 +82,17 @@ export const login = async (req, res) => {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    // ✅ GENERATE TOKEN
     const token = generateToken(user._id);
 
+    // 🔥 FIX: SET COOKIE
+    res.cookie("jwt", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "None",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+
     res.status(200).json({
-      token,
       user: {
         _id: user._id,
         fullName: user.fullName,
@@ -97,10 +109,11 @@ export const login = async (req, res) => {
 };
 
 // ─────────────────────────────────────────
-// LOGOUT (FRONTEND HANDLES IT)
+// LOGOUT
 // ─────────────────────────────────────────
 export const logout = async (req, res) => {
   try {
+    res.cookie("jwt", "", { maxAge: 0 });
     res.status(200).json({ message: "Logged out successfully" });
   } catch (error) {
     res.status(500).json({ message: "Internal Server Error" });

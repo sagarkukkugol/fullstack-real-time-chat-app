@@ -1,26 +1,21 @@
 import express from "express";
 import dotenv from "dotenv";
+import cookieParser from "cookie-parser";
 import cors from "cors";
-
-dotenv.config();
-
-import { connectDB } from "./lib/db.js";
-import { app, server } from "./lib/socket.js";
 
 import authRoutes from "./routes/auth.route.js";
 import messageRoutes from "./routes/message.route.js";
-import ledgerRoutes from "./routes/ledger.route.js";
-import contactRoutes from "./routes/contact.route.js";
+import userRoutes from "./routes/user.route.js";
 
-const PORT = process.env.PORT || 5000;
+dotenv.config();
 
-// ✅ BODY PARSER
-app.use(express.json({ limit: "10mb" }));
+const app = express();
 
-// ✅ TRUST PROXY (Render)
-app.set("trust proxy", 1);
+// ✅ MIDDLEWARE
+app.use(express.json());
+app.use(cookieParser());
 
-// ✅ SIMPLE CORS (WORKS WITH JWT)
+// 🔥 CORS FIX (MOST IMPORTANT)
 app.use(
   cors({
     origin: "https://fullstack-real-time-chat-app-eta.vercel.app",
@@ -28,24 +23,18 @@ app.use(
   })
 );
 
-// ✅ HEALTH CHECK
-app.get("/", (req, res) => {
-  res.send("Backend is running 🚀");
-});
-
 // ✅ ROUTES
 app.use("/api/auth", authRoutes);
 app.use("/api/messages", messageRoutes);
-app.use("/api/ledger", ledgerRoutes);
-app.use("/api/contacts", contactRoutes);
+app.use("/api/users", userRoutes);
 
-// ✅ START SERVER
-connectDB()
-  .then(() => {
-    server.listen(PORT, () => {
-      console.log("🚀 Server running on PORT:", PORT);
-    });
-  })
-  .catch((err) => {
-    console.error("DB connection failed ❌", err);
-  });
+// ✅ TEST ROUTE
+app.get("/", (req, res) => {
+  res.send("Backend is running...");
+});
+
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log("Server running on port " + PORT);
+});
