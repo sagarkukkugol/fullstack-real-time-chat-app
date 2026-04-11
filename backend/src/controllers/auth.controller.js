@@ -7,62 +7,97 @@ import cloudinary from "../lib/cloudinary.js";
 // POST /api/auth/signup
 // CHANGED: now requires phoneNumber in addition to existing fields.
 // ─────────────────────────────────────────────────────────────────────────────
+// export const signup = async (req, res) => {
+//   const { fullName, email, password, phoneNumber } = req.body;
+
+//   try {
+//     // ── Required field check ─────────────────────
+//     if (!fullName || !email || !password || !phoneNumber) {
+//       return res.status(400).json({ message: "All fields are required" });
+//     }
+
+//     if (password.length < 6) {
+//       return res.status(400).json({ message: "Password must be at least 6 characters" });
+//     }
+
+//     // ── Phone number format validation ───────────
+//     // Accepts 10-15 digits, optional leading +
+//     if (!/^\+?[0-9]{10,15}$/.test(phoneNumber.trim())) {
+//       return res.status(400).json({
+//         message: "Phone number must be 10–15 digits (e.g. 9876543210 or +919876543210)",
+//       });
+//     }
+
+//     // ── Duplicate checks ─────────────────────────
+//     const existingEmail = await User.findOne({ email });
+//     if (existingEmail) {
+//       return res.status(400).json({ message: "Email already registered" });
+//     }
+
+//     const existingPhone = await User.findOne({ phoneNumber: phoneNumber.trim() });
+//     if (existingPhone) {
+//       return res.status(400).json({ message: "Phone number already registered" });
+//     }
+
+//     // ── Hash password ────────────────────────────
+//     const salt = await bcrypt.genSalt(10);
+//     const hashedPassword = await bcrypt.hash(password, salt);
+
+//     const newUser = new User({
+//       fullName,
+//       email,
+//       password: hashedPassword,
+//       phoneNumber: phoneNumber.trim(),
+//     });
+
+//     generateToken(newUser._id, res);
+//     await newUser.save();
+
+//     // Return safe user object (never expose password)
+//     res.status(201).json({
+//       _id: newUser._id,
+//       fullName: newUser.fullName,
+//       email: newUser.email,
+//       phoneNumber: newUser.phoneNumber,
+//       profilePic: newUser.profilePic,
+//     });
+//   } catch (error) {
+//     console.error("signup error:", error.message);
+//     res.status(500).json({ message: "Internal Server Error" });
+//   }
+// };
+
+
+
 export const signup = async (req, res) => {
   const { fullName, email, password, phoneNumber } = req.body;
 
   try {
-    // ── Required field check ─────────────────────
     if (!fullName || !email || !password || !phoneNumber) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    if (password.length < 6) {
-      return res.status(400).json({ message: "Password must be at least 6 characters" });
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ message: "Email already exists" });
     }
 
-    // ── Phone number format validation ───────────
-    // Accepts 10-15 digits, optional leading +
-    if (!/^\+?[0-9]{10,15}$/.test(phoneNumber.trim())) {
-      return res.status(400).json({
-        message: "Phone number must be 10–15 digits (e.g. 9876543210 or +919876543210)",
-      });
-    }
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    // ── Duplicate checks ─────────────────────────
-    const existingEmail = await User.findOne({ email });
-    if (existingEmail) {
-      return res.status(400).json({ message: "Email already registered" });
-    }
-
-    const existingPhone = await User.findOne({ phoneNumber: phoneNumber.trim() });
-    if (existingPhone) {
-      return res.status(400).json({ message: "Phone number already registered" });
-    }
-
-    // ── Hash password ────────────────────────────
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    const newUser = new User({
+    const newUser = await User.create({
       fullName,
       email,
       password: hashedPassword,
-      phoneNumber: phoneNumber.trim(),
+      phoneNumber,
     });
 
-    generateToken(newUser._id, res);
-    await newUser.save();
+    const token = generateToken(newUser._id);
 
-    // Return safe user object (never expose password)
     res.status(201).json({
-      _id: newUser._id,
-      fullName: newUser.fullName,
-      email: newUser.email,
-      phoneNumber: newUser.phoneNumber,
-      profilePic: newUser.profilePic,
+      token, // ✅ SEND TOKEN
+      user: newUser,
     });
   } catch (error) {
-    console.error("signup error:", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
@@ -70,30 +105,58 @@ export const signup = async (req, res) => {
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/auth/login  (UNCHANGED — kept for completeness)
 // ─────────────────────────────────────────────────────────────────────────────
+// export const login = async (req, res) => {
+//   const { email, password } = req.body;
+//   try {
+//     const user = await User.findOne({ email });
+//     if (!user) {
+//       return res.status(400).json({ message: "Invalid credentials" });
+//     }
+
+//     const isPasswordCorrect = await bcrypt.compare(password, user.password);
+//     if (!isPasswordCorrect) {
+//       return res.status(400).json({ message: "Invalid credentials" });
+//     }
+
+//     generateToken(user._id, res);
+
+//     res.status(200).json({
+//       _id: user._id,
+//       fullName: user.fullName,
+//       email: user.email,
+//       phoneNumber: user.phoneNumber,
+//       profilePic: user.profilePic,
+//     });
+//   } catch (error) {
+//     console.error("login error:", error.message);
+//     res.status(500).json({ message: "Internal Server Error" });
+//   }
+// };
+
+
 export const login = async (req, res) => {
   const { email, password } = req.body;
+
   try {
     const user = await User.findOne({ email });
+
     if (!user) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    const isPasswordCorrect = await bcrypt.compare(password, user.password);
-    if (!isPasswordCorrect) {
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (!isMatch) {
       return res.status(400).json({ message: "Invalid credentials" });
     }
 
-    generateToken(user._id, res);
+    const token = generateToken(user._id);
 
     res.status(200).json({
-      _id: user._id,
-      fullName: user.fullName,
-      email: user.email,
-      phoneNumber: user.phoneNumber,
-      profilePic: user.profilePic,
+      token, // ✅ SEND TOKEN
+      user,
     });
   } catch (error) {
-    console.error("login error:", error.message);
     res.status(500).json({ message: "Internal Server Error" });
   }
 };

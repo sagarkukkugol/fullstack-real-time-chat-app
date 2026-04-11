@@ -28,13 +28,13 @@ export const generateToken = (userId, res) => {
 
   const isProduction = process.env.NODE_ENV === "production";
 
-  res.cookie("jwt", token, {
-    httpOnly: true,
-    secure: true,              // 🔥 ALWAYS true (Render + Vercel = HTTPS)
-    sameSite: "none",          // 🔥 REQUIRED for cross-origin
-    maxAge: 7 * 24 * 60 * 60 * 1000,
-    //path: "/",                 // ✅ ensure cookie available everywhere
-  });
+  // res.cookie("jwt", token, {
+  //   httpOnly: true,
+  //   secure: true,              // 🔥 ALWAYS true (Render + Vercel = HTTPS)
+  //   sameSite: "none",          // 🔥 REQUIRED for cross-origin
+  //   maxAge: 7 * 24 * 60 * 60 * 1000,
+  //   //path: "/",                 // ✅ ensure cookie available everywhere
+  // });
 
   return token;
 };

@@ -2,20 +2,24 @@ import { io } from "socket.io-client";
 
 let socket = null;
 
-export const connectSocket = (userId) => {
+export const connectSocket = () => {
   if (socket && socket.connected) return socket;
+
   if (socket) {
     socket.removeAllListeners();
+    socket.disconnect();
     socket = null;
   }
 
-  // ✅ FIX #4: Socket.IO connects to the BASE URL (no /api suffix).
-  // VITE_API_URL is now the bare base URL, so this is correct.
-  socket = io("/", {
-  query: { userId },
-  withCredentials: true,
-  transports: ["websocket"],
-});
+  const token = localStorage.getItem("token");
+
+  // ✅ CONNECT TO BACKEND URL
+  socket = io(import.meta.env.VITE_API_URL, {
+    auth: {
+      token, // ✅ send token instead of query
+    },
+    transports: ["websocket"],
+  });
 
   socket.on("connect", () => {
     console.log("✅ SOCKET CONNECTED:", socket.id);

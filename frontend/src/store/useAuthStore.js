@@ -16,36 +16,54 @@ export const useAuthStore = create((set, get) => ({
   setIncomingCall: (call) => set({ incomingCall: call }),
   clearIncomingCall: () => set({ incomingCall: null }),
 
+  // 🔥 AFTER LOGIN/SIGNUP
   _onAuthenticated: (socket) => {
     socket.on("getOnlineUsers", (users) => set({ onlineUsers: users }));
+
     socket.on("incoming-call", ({ from, roomId, callerName }) => {
       set({ incomingCall: { from, roomId, callerName } });
     });
+
     useContactStore.getState().fetchAliases();
   },
 
+  // 🔍 CHECK AUTH (ON APP LOAD)
   checkAuth: async () => {
     try {
       set({ isCheckingAuth: true });
-      // ✅ FIX: baseURL already has /api — use /auth/check NOT /api/auth/check
+
       const res = await axiosInstance.get("/auth/check");
+
       set({ authUser: res.data, isCheckingAuth: false });
-      const socket = connectSocket(res.data._id);
+
+      // ✅ CONNECT SOCKET (NO userId needed now)
+      const socket = connectSocket();
       get()._onAuthenticated(socket);
+
     } catch (error) {
       set({ authUser: null, isCheckingAuth: false });
     }
   },
 
+  // 🔐 LOGIN
   login: async (data) => {
     set({ isLoggingIn: true });
+
     try {
-      // ✅ FIX: /auth/login not /api/auth/login
       const res = await axiosInstance.post("/auth/login", data);
-      set({ authUser: res.data });
+
+      // ✅ SAVE TOKEN
+      localStorage.setItem("token", res.data.token);
+
+      // ✅ SAVE USER
+      set({ authUser: res.data.user });
+
       toast.success("Logged in successfully");
-      const socket = connectSocket(res.data._id);
+
+      // ✅ CONNECT SOCKET
+      const socket = connectSocket();
       get()._onAuthenticated(socket);
+
     } catch (error) {
       toast.error(error.response?.data?.message);
     } finally {
@@ -53,15 +71,25 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
+  // 📝 SIGNUP
   signup: async (data) => {
     set({ isSigningUp: true });
+
     try {
-      // ✅ FIX: /auth/signup not /api/auth/signup
       const res = await axiosInstance.post("/auth/signup", data);
-      set({ authUser: res.data });
+
+      // ✅ SAVE TOKEN
+      localStorage.setItem("token", res.data.token);
+
+      // ✅ SAVE USER
+      set({ authUser: res.data.user });
+
       toast.success("Account created");
-      const socket = connectSocket(res.data._id);
+
+      // ✅ CONNECT SOCKET
+      const socket = connectSocket();
       get()._onAuthenticated(socket);
+
     } catch (error) {
       toast.error(error.response?.data?.message);
     } finally {
@@ -69,26 +97,40 @@ export const useAuthStore = create((set, get) => ({
     }
   },
 
+  // 🚪 LOGOUT
   logout: async () => {
     try {
-      // ✅ FIX: /auth/logout not /api/auth/logout
-      await axiosInstance.post("/auth/logout");
+      // ❌ NO NEED backend logout anymore
+      localStorage.removeItem("token");
+
       disconnectSocket();
-      set({ authUser: null, onlineUsers: [], incomingCall: null });
+
+      set({
+        authUser: null,
+        onlineUsers: [],
+        incomingCall: null,
+      });
+
       useContactStore.setState({ aliasMap: {} });
+
       toast.success("Logged out");
+
     } catch (error) {
-      toast.error(error.response?.data?.message);
+      toast.error("Logout failed");
     }
   },
 
+  // 👤 UPDATE PROFILE
   updateProfile: async (data) => {
     set({ isUpdatingProfile: true });
+
     try {
-      // ✅ FIX: /auth/update-profile not /api/auth/update-profile
       const res = await axiosInstance.put("/auth/update-profile", data);
+
       set({ authUser: res.data });
+
       toast.success("Profile updated");
+
     } catch (error) {
       toast.error(error.response?.data?.message || "Update failed");
     } finally {

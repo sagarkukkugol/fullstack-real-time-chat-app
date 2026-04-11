@@ -1,6 +1,20 @@
+// 
+
+
+
 import axios from "axios";
 
 export const axiosInstance = axios.create({
-  baseURL: "/api",        // 🔥 IMPORTANT CHANGE
-  withCredentials: true,
+  baseURL: import.meta.env.VITE_API_URL + "/api",
+});
+
+// ✅ Attach token automatically
+axiosInstance.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
 });
