@@ -1,5 +1,12 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/api/(.*)",
+      "destination": "https://fullstack-real-time-chat-app-1-je1l.onrender.com/api/$1"
+    },
+    {
+      "source": "/socket.io/(.*)",
+      "destination": "https://fullstack-real-time-chat-app-1-je1l.onrender.com/socket.io/$1"
+    }
   ]
 }

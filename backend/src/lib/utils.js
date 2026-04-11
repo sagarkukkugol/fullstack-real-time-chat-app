@@ -33,7 +33,7 @@ export const generateToken = (userId, res) => {
     secure: true,              // 🔥 ALWAYS true (Render + Vercel = HTTPS)
     sameSite: "none",          // 🔥 REQUIRED for cross-origin
     maxAge: 7 * 24 * 60 * 60 * 1000,
-    path: "/",                 // ✅ ensure cookie available everywhere
+    //path: "/",                 // ✅ ensure cookie available everywhere
   });
 
   return token;

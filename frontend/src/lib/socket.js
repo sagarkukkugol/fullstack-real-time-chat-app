@@ -11,10 +11,11 @@ export const connectSocket = (userId) => {
 
   // ✅ FIX #4: Socket.IO connects to the BASE URL (no /api suffix).
   // VITE_API_URL is now the bare base URL, so this is correct.
-  socket = io(import.meta.env.VITE_API_URL, {
-    query: { userId },
-    transports: ["websocket"],
-  });
+  socket = io("/", {
+  query: { userId },
+  withCredentials: true,
+  transports: ["websocket"],
+});
 
   socket.on("connect", () => {
     console.log("✅ SOCKET CONNECTED:", socket.id);
