@@ -89,8 +89,6 @@ CLOUDINARY_API_SECRET=xxx
 
 ## 📸 Screenshots
 
-(Add your UI screenshots here)
-
 ---
 
 ## 🚀 Future Improvements
